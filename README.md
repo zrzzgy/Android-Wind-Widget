@@ -44,221 +44,194 @@ The app follows a layered architecture:
 
 ## Class Diagram
 
-```plantuml
-@startuml
-skinparam classAttributeIconSize 0
-skinparam packageStyle rectangle
-skinparam linetype ortho
+```mermaid
+classDiagram
+    direction TB
 
-package "ui" {
-  class MainActivity {
-    - hasLocationPermission: Boolean
-    - showRationale: Boolean
-    - permanentlyDenied: Boolean
-    + onCreate()
-    + onResume()
-    - checkPermissions()
-    - requestLocationPermission()
-    - openAppSettings()
-  }
+    class MainActivity {
+        -hasLocationPermission Boolean
+        -showRationale Boolean
+        -permanentlyDenied Boolean
+        +onCreate()
+        +onResume()
+        -checkPermissions()
+        -requestLocationPermission()
+        -openAppSettings()
+    }
 
-  class WindApp <<Composable>> {
-    + WindApp()
-  }
+    class WindApp {
+        <<Composable>>
+        +WindApp()
+    }
 
-  class ChartScreen <<Composable>> {
-    - hourlyData: HourlyData?
-    - isLoading: Boolean
-    - isRefreshing: Boolean
-    - error: String?
-    + ChartScreen(onOpenDrawer)
-    - loadData()
-  }
+    class ChartScreen {
+        <<Composable>>
+        -hourlyData HourlyData
+        -isLoading Boolean
+        -isRefreshing Boolean
+        -error String
+        +ChartScreen(onOpenDrawer)
+        -loadData()
+    }
 
-  class SettingsScreen <<Composable>> {
-    + SettingsScreen(onBack)
-  }
+    class SettingsScreen {
+        <<Composable>>
+        +SettingsScreen(onBack)
+    }
 
-  class WindWidgetTheme <<Composable>> {
-    + WindWidgetTheme(darkTheme, content)
-  }
-}
+    class WindWidgetProvider {
+        +ACTION_REFRESH String
+        +onUpdate(context, manager, ids)
+        +onReceive(context, intent)
+        -updateWidget(context, manager, id)
+    }
 
-package "widget" {
-  class WindWidgetProvider {
-    + ACTION_REFRESH: String
-    + onUpdate(context, manager, ids)
-    + onReceive(context, intent)
-    - updateWidget(context, manager, id)
-  }
-}
+    class WindApi {
+        <<interface>>
+        +getWind(lat, lng, hourly, days) WindResponse
+    }
 
-package "data" {
-  interface WindApi {
-    + getWind(latitude, longitude, hourly, forecastDays): WindResponse
-  }
+    class WindRepository {
+        <<object>>
+        -moshi Moshi
+        -api WindApi
+        +getHourlyWind(lat, lng) WindResponse
+    }
 
-  class WindRepository <<object>> {
-    - moshi: Moshi
-    - api: WindApi
-    + getHourlyWind(latitude, longitude): WindResponse
-  }
+    class PreferencesManager {
+        -isMphKey PreferencesKey
+        +isMph Flow~Boolean~
+        +setUnit(isMph Boolean)
+        +getIsMph() Boolean
+    }
 
-  class PreferencesManager {
-    - isMphKey: Preferences.Key<Boolean>
-    + isMph: Flow<Boolean>
-    + setUnit(isMph: Boolean)
-    + getIsMph(): Boolean
-  }
+    class WindResponse {
+        <<data class>>
+        +latitude Double
+        +longitude Double
+        +hourly HourlyData
+    }
 
-  class WindResponse <<data>> {
-    + latitude: Double
-    + longitude: Double
-    + hourly: HourlyData
-  }
+    class HourlyData {
+        <<data class>>
+        +time List~String~
+        +windSpeed List~Double~
+    }
 
-  class HourlyData <<data>> {
-    + time: List<String>
-    + windSpeed: List<Double>
-  }
-}
+    class LocationHelper {
+        <<object>>
+        +getCurrentLocation(context) Location
+    }
 
-package "location" {
-  class LocationHelper <<object>> {
-    + getCurrentLocation(context): Location?
-  }
-}
-
-' Relationships
-MainActivity --> WindApp : hosts
-WindApp --> ChartScreen : navigates to
-WindApp --> SettingsScreen : navigates to
-
-ChartScreen --> WindRepository : fetches wind data
-ChartScreen --> LocationHelper : gets current location
-ChartScreen --> PreferencesManager : observes unit
-
-SettingsScreen --> PreferencesManager : updates unit
-
-WindWidgetProvider --> WindRepository : fetches wind data
-WindWidgetProvider --> LocationHelper : gets current location
-WindWidgetProvider --> PreferencesManager : reads unit
-
-WindRepository --> WindApi : delegates
-WindApi --> WindResponse : returns
-WindResponse *-- HourlyData : contains
-
-PreferencesManager ..> WindWidgetProvider : broadcasts ACTION_REFRESH
-
-@enduml
+    MainActivity --> WindApp : hosts
+    WindApp --> ChartScreen : navigates to
+    WindApp --> SettingsScreen : navigates to
+    ChartScreen --> WindRepository : fetches wind data
+    ChartScreen --> LocationHelper : gets location
+    ChartScreen --> PreferencesManager : observes unit
+    SettingsScreen --> PreferencesManager : updates unit
+    WindWidgetProvider --> WindRepository : fetches wind data
+    WindWidgetProvider --> LocationHelper : gets location
+    WindWidgetProvider --> PreferencesManager : reads unit
+    WindRepository --> WindApi : delegates
+    WindApi ..> WindResponse : returns
+    WindResponse *-- HourlyData : contains
+    PreferencesManager ..> WindWidgetProvider : broadcasts ACTION_REFRESH
 ```
 
 ---
 
 ## Sequence Diagram — Widget Update Flow
 
-```plantuml
-@startuml
-skinparam sequenceArrowThickness 2
-skinparam responseMessageBelowArrow true
+```mermaid
+sequenceDiagram
+    actor User
+    participant System as Android System
+    participant WWP as WindWidgetProvider
+    participant LH as LocationHelper
+    participant WR as WindRepository
+    participant API as Open-Meteo API
+    participant PM as PreferencesManager
+    participant Widget as Home Screen
 
-actor User
-participant "Android\nSystem" as System
-participant WindWidgetProvider
-participant LocationHelper
-participant WindRepository
-participant "Open-Meteo\nAPI" as API
-participant PreferencesManager
-participant "Home Screen\n(RemoteViews)" as Widget
+    alt System-triggered every 30 min
+        System->>WWP: onUpdate(appWidgetIds)
+    else User taps Refresh button
+        User->>Widget: tap refresh button
+        Widget->>WWP: onReceive(ACTION_REFRESH)
+    end
 
-== Periodic or Manual Refresh ==
+    WWP->>Widget: show loading state
+    Note over WWP: goAsync() keeps process alive ~30s
 
-alt System-triggered (every 30 min)
-  System -> WindWidgetProvider : onUpdate(appWidgetIds)
-else User taps Refresh button
-  User -> Widget : tap refresh button
-  Widget -> WindWidgetProvider : onReceive(ACTION_REFRESH)
-end
+    WWP->>LH: getCurrentLocation(context)
+    alt lastLocation available
+        LH-->>WWP: Location(lat, lng)
+    else fallback
+        LH->>LH: getCurrentLocation(BALANCED_POWER)
+        LH-->>WWP: Location(lat, lng)
+    end
 
-WindWidgetProvider -> Widget : show loading ("...")
-WindWidgetProvider -> WindWidgetProvider : goAsync() — keep process alive
+    WWP->>WR: getHourlyWind(lat, lng)
+    WR->>API: GET /v1/forecast?hourly=wind_speed_10m
+    API-->>WR: WindResponse 24 hourly speeds
+    WR-->>WWP: WindResponse
 
-WindWidgetProvider -> LocationHelper : getCurrentLocation(context)
-LocationHelper -> LocationHelper : check FINE/COARSE permissions
-LocationHelper -> LocationHelper : try lastLocation (cached)
-alt lastLocation available
-  LocationHelper --> WindWidgetProvider : Location(lat, lng)
-else fallback
-  LocationHelper -> LocationHelper : getCurrentLocation(BALANCED_POWER)
-  LocationHelper --> WindWidgetProvider : Location(lat, lng)
-end
+    WWP->>PM: getIsMph()
+    PM-->>WWP: Boolean
 
-WindWidgetProvider -> WindRepository : getHourlyWind(lat, lng)
-WindRepository -> API : GET /v1/forecast?latitude=...&longitude=...&hourly=wind_speed_10m
-API --> WindRepository : WindResponse (24 hourly speeds)
-WindRepository --> WindWidgetProvider : WindResponse
-
-WindWidgetProvider -> PreferencesManager : getIsMph()
-PreferencesManager --> WindWidgetProvider : Boolean
-
-WindWidgetProvider -> WindWidgetProvider : get current hour index\nconvert units if mph
-
-WindWidgetProvider -> Widget : updateAppWidget(speed, unit)
-WindWidgetProvider -> WindWidgetProvider : pendingResult.finish()
-
-@enduml
+    Note over WWP: get current hour, convert units if mph
+    WWP->>Widget: updateAppWidget(speed, unit)
+    Note over WWP: pendingResult.finish()
 ```
 
 ---
 
 ## Sequence Diagram — App: Chart Screen Load
 
-```plantuml
-@startuml
-skinparam sequenceArrowThickness 2
-skinparam responseMessageBelowArrow true
+```mermaid
+sequenceDiagram
+    actor User
+    participant MA as MainActivity
+    participant NH as NavHost
+    participant CS as ChartScreen
+    participant LH as LocationHelper
+    participant WR as WindRepository
+    participant API as Open-Meteo API
+    participant PM as PreferencesManager
+    participant SS as SettingsScreen
+    participant WWP as WindWidgetProvider
 
-actor User
-participant MainActivity
-participant "WindApp\n(NavHost)" as NavHost
-participant ChartScreen
-participant LocationHelper
-participant WindRepository
-participant "Open-Meteo\nAPI" as API
-participant PreferencesManager
+    User->>MA: launch app
+    MA->>MA: checkPermissions()
 
-User -> MainActivity : launch app
-MainActivity -> MainActivity : checkPermissions()
+    alt permissions granted
+        MA->>NH: setContent WindApp
+        NH->>CS: navigate chart
+        CS->>CS: LaunchedEffect loadData
+        CS->>LH: getCurrentLocation(context)
+        LH-->>CS: Location(lat, lng)
+        CS->>WR: getHourlyWind(lat, lng)
+        WR->>API: GET /v1/forecast
+        API-->>WR: WindResponse
+        WR-->>CS: WindResponse
+        CS->>PM: collect isMph Flow
+        PM-->>CS: Boolean
+        Note over CS: map to chart entries, convert units
+        CS-->>User: render wind speed card and chart
+    else permissions denied
+        MA-->>User: show rationale or Open Settings
+    end
 
-alt permissions granted
-  MainActivity -> NavHost : setContent { WindApp() }
-  NavHost -> ChartScreen : navigate("chart")
-  ChartScreen -> ChartScreen : LaunchedEffect → loadData()
-  ChartScreen -> LocationHelper : getCurrentLocation(context)
-  LocationHelper --> ChartScreen : Location(lat, lng)
-  ChartScreen -> WindRepository : getHourlyWind(lat, lng)
-  WindRepository -> API : GET /v1/forecast
-  API --> WindRepository : WindResponse
-  WindRepository --> ChartScreen : WindResponse
-  ChartScreen -> PreferencesManager : collect isMph Flow
-  PreferencesManager --> ChartScreen : Boolean (current value)
-  ChartScreen -> ChartScreen : map hourlyData to chart entries\nconvert units
-  ChartScreen --> User : render wind speed card + Vico chart
-else permissions denied
-  MainActivity --> User : show permission rationale / settings button
-end
-
-== User changes unit in Settings ==
-
-User -> NavHost : open drawer → Settings
-NavHost -> "SettingsScreen" as Settings : navigate("settings")
-User -> Settings : select mph
-Settings -> PreferencesManager : setUnit(isMph = true)
-PreferencesManager -> PreferencesManager : write to DataStore
-PreferencesManager -> WindWidgetProvider : broadcast ACTION_REFRESH
-ChartScreen -> ChartScreen : isMph Flow emits true\nrecompose with mph values
-
-@enduml
+    Note over User,WWP: User changes unit in Settings
+    User->>NH: open drawer to Settings
+    NH->>SS: navigate settings
+    User->>SS: select mph
+    SS->>PM: setUnit isMph true
+    PM->>PM: write to DataStore
+    PM->>WWP: broadcast ACTION_REFRESH
+    PM-->>CS: isMph Flow emits true
+    Note over CS: recompose with mph values
 ```
 
 ---

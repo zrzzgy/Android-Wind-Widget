@@ -111,10 +111,10 @@ class WindWidgetProvider : AppWidgetProvider() {
                     )
                     views.setTextViewText(R.id.tv_wind_unit, unit)
                 } else {
-                    views.setTextViewText(R.id.tv_wind_speed, "--")
+                    views.setTextViewText(R.id.tv_wind_speed, "E1")
                 }
             } catch (_: Exception) {
-                views.setTextViewText(R.id.tv_wind_speed, "--")
+                views.setTextViewText(R.id.tv_wind_speed, "E2")
             } finally {
                 appWidgetManager.updateAppWidget(appWidgetId, views)
                 // Signal that async work is done — Android can now reclaim
