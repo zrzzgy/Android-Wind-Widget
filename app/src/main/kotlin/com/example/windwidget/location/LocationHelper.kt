@@ -22,7 +22,12 @@ object LocationHelper {
 
         val client = LocationServices.getFusedLocationProviderClient(context)
 
+        // Try lastLocation first — it's fast, doesn't need GPS, and works
+        // reliably from widget/background contexts where getCurrentLocation
+        // often times out.
         return try {
+            val last = client.lastLocation.await()
+            if (last != null) return last
             client.getCurrentLocation(
                 Priority.PRIORITY_BALANCED_POWER_ACCURACY,
                 CancellationTokenSource().token

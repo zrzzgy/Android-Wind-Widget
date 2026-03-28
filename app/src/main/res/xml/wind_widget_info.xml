@@ -5,6 +5,6 @@
     android:minHeight="40dp"
     android:resizeMode="none"
     android:updatePeriodMillis="1800000"
-    android:widgetCategory="home_screen"
+    android:widgetCategory="home_screen|keyguard"
     android:description="@string/widget_description"
     android:previewLayout="@layout/widget_wind" />

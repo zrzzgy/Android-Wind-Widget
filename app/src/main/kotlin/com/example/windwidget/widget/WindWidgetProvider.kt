@@ -77,37 +77,49 @@ class WindWidgetProvider : AppWidgetProvider() {
         views.setTextViewText(R.id.tv_wind_speed, "...")
         appWidgetManager.updateAppWidget(appWidgetId, views)
 
-        // Fetch data in background
+        // Fetch data in background with retry
         scope.launch {
-            try {
-                val location = LocationHelper.getCurrentLocation(context)
-                if (location != null) {
-                    val response = WindRepository.getHourlyWind(
-                        location.latitude, location.longitude
-                    )
-                    val prefs = PreferencesManager(context)
-                    val isMph = prefs.getIsMph()
+            var attempts = 0
+            val maxAttempts = 2
+            while (attempts < maxAttempts) {
+                try {
+                    val location = LocationHelper.getCurrentLocation(context)
+                    if (location != null) {
+                        val response = WindRepository.getHourlyWind(
+                            location.latitude, location.longitude
+                        )
+                        val prefs = PreferencesManager(context)
+                        val isMph = prefs.getIsMph()
 
-                    // Get current hour's wind speed
-                    val currentHour = java.time.LocalTime.now().hour
-                    val windSpeedKmh = response.hourly.windSpeed.getOrElse(currentHour) {
-                        response.hourly.windSpeed.firstOrNull() ?: 0.0
+                        val currentHour = java.time.LocalTime.now().hour
+                        val windSpeedKmh = response.hourly.windSpeed.getOrElse(currentHour) {
+                            response.hourly.windSpeed.firstOrNull() ?: 0.0
+                        }
+
+                        val displaySpeed = if (isMph) windSpeedKmh * 0.621371 else windSpeedKmh
+                        val unit = if (isMph) "mph" else "km/h"
+
+                        views.setTextViewText(
+                            R.id.tv_wind_speed,
+                            String.format("%.0f", displaySpeed)
+                        )
+                        views.setTextViewText(R.id.tv_wind_unit, unit)
+                        appWidgetManager.updateAppWidget(appWidgetId, views)
+                        return@launch
+                    } else {
+                        attempts++
+                        if (attempts < maxAttempts) {
+                            kotlinx.coroutines.delay(2000)
+                        }
                     }
-
-                    val displaySpeed = if (isMph) windSpeedKmh * 0.621371 else windSpeedKmh
-                    val unit = if (isMph) "mph" else "km/h"
-
-                    views.setTextViewText(
-                        R.id.tv_wind_speed,
-                        String.format("%.0f", displaySpeed)
-                    )
-                    views.setTextViewText(R.id.tv_wind_unit, unit)
-                } else {
-                    views.setTextViewText(R.id.tv_wind_speed, "--")
+                } catch (_: Exception) {
+                    attempts++
+                    if (attempts < maxAttempts) {
+                        kotlinx.coroutines.delay(2000)
+                    }
                 }
-            } catch (_: Exception) {
-                views.setTextViewText(R.id.tv_wind_speed, "!")
             }
+            views.setTextViewText(R.id.tv_wind_speed, "--")
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
     }
