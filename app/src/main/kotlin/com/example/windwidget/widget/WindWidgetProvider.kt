@@ -23,8 +23,6 @@ class WindWidgetProvider : AppWidgetProvider() {
         const val ACTION_REFRESH = "com.example.windwidget.ACTION_REFRESH"
     }
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
     override fun onUpdate(
         context: Context,
         appWidgetManager: AppWidgetManager,
@@ -77,50 +75,52 @@ class WindWidgetProvider : AppWidgetProvider() {
         views.setTextViewText(R.id.tv_wind_speed, "...")
         appWidgetManager.updateAppWidget(appWidgetId, views)
 
-        // Fetch data in background with retry
-        scope.launch {
-            var attempts = 0
-            val maxAttempts = 2
-            while (attempts < maxAttempts) {
-                try {
-                    val location = LocationHelper.getCurrentLocation(context)
-                    if (location != null) {
-                        val response = WindRepository.getHourlyWind(
-                            location.latitude, location.longitude
-                        )
-                        val prefs = PreferencesManager(context)
-                        val isMph = prefs.getIsMph()
+        // Use goAsync() to keep the broadcast receiver alive while we do
+        // async work. Without this, Android kills the process ~10s after
+        // onReceive/onUpdate returns, which races with the network call.
+        val pendingResult = goAsync()
 
-                        val currentHour = java.time.LocalTime.now().hour
-                        val windSpeedKmh = response.hourly.windSpeed.getOrElse(currentHour) {
-                            response.hourly.windSpeed.firstOrNull() ?: 0.0
-                        }
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            try {
+                var location = LocationHelper.getCurrentLocation(context)
 
-                        val displaySpeed = if (isMph) windSpeedKmh * 0.621371 else windSpeedKmh
-                        val unit = if (isMph) "mph" else "km/h"
-
-                        views.setTextViewText(
-                            R.id.tv_wind_speed,
-                            String.format("%.0f", displaySpeed)
-                        )
-                        views.setTextViewText(R.id.tv_wind_unit, unit)
-                        appWidgetManager.updateAppWidget(appWidgetId, views)
-                        return@launch
-                    } else {
-                        attempts++
-                        if (attempts < maxAttempts) {
-                            kotlinx.coroutines.delay(2000)
-                        }
-                    }
-                } catch (_: Exception) {
-                    attempts++
-                    if (attempts < maxAttempts) {
-                        kotlinx.coroutines.delay(2000)
-                    }
+                // Retry once after a short delay if location was null
+                if (location == null) {
+                    kotlinx.coroutines.delay(2000)
+                    location = LocationHelper.getCurrentLocation(context)
                 }
+
+                if (location != null) {
+                    val response = WindRepository.getHourlyWind(
+                        location.latitude, location.longitude
+                    )
+                    val prefs = PreferencesManager(context)
+                    val isMph = prefs.getIsMph()
+
+                    val currentHour = java.time.LocalTime.now().hour
+                    val windSpeedKmh = response.hourly.windSpeed.getOrElse(currentHour) {
+                        response.hourly.windSpeed.firstOrNull() ?: 0.0
+                    }
+
+                    val displaySpeed = if (isMph) windSpeedKmh * 0.621371 else windSpeedKmh
+                    val unit = if (isMph) "mph" else "km/h"
+
+                    views.setTextViewText(
+                        R.id.tv_wind_speed,
+                        String.format("%.0f", displaySpeed)
+                    )
+                    views.setTextViewText(R.id.tv_wind_unit, unit)
+                } else {
+                    views.setTextViewText(R.id.tv_wind_speed, "--")
+                }
+            } catch (_: Exception) {
+                views.setTextViewText(R.id.tv_wind_speed, "--")
+            } finally {
+                appWidgetManager.updateAppWidget(appWidgetId, views)
+                // Signal that async work is done — Android can now reclaim
+                // the process. This extends the receiver lifetime to ~30s.
+                pendingResult.finish()
             }
-            views.setTextViewText(R.id.tv_wind_speed, "--")
-            appWidgetManager.updateAppWidget(appWidgetId, views)
         }
     }
 }
