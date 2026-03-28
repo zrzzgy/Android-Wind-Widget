@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Wind icon -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,54 Q45,42 60,54 Q75,66 90,54"
+        android:strokeWidth="4"
+        android:strokeColor="#FFFFFF" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M24,44 Q42,32 60,44 Q78,56 96,44"
+        android:strokeWidth="3"
+        android:strokeColor="#FFFFFF" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M24,64 Q42,52 60,64 Q78,76 96,64"
+        android:strokeWidth="3"
+        android:strokeColor="#FFFFFF" />
+</vector>
