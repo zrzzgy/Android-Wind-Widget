@@ -46,7 +46,6 @@ The app follows a layered architecture:
 
 ```mermaid
 classDiagram
-    direction TB
 
     class MainActivity {
         -hasLocationPermission Boolean
@@ -88,14 +87,14 @@ classDiagram
 
     class WindApi {
         <<interface>>
-        +getWind(lat, lng, hourly, days) WindResponse
+        +getWind(latitude, longitude, hourly, forecastDays) WindResponse
     }
 
     class WindRepository {
         <<object>>
         -moshi Moshi
         -api WindApi
-        +getHourlyWind(lat, lng) WindResponse
+        +getHourlyWind(latitude, longitude) WindResponse
     }
 
     class PreferencesManager {
@@ -138,8 +137,6 @@ classDiagram
     WindResponse *-- HourlyData : contains
     PreferencesManager ..> WindWidgetProvider : broadcasts ACTION_REFRESH
 ```
-
----
 
 ## Sequence Diagram — Widget Update Flow
 
