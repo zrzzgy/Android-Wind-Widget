@@ -61,8 +61,8 @@ dependencies {
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.0.0")
 
-    // Vico Charts
-    implementation("com.patrykandpatrick.vico:compose-m3:2.0.0-beta.1")
+    // Vico Charts (1.x stable API)
+    implementation("com.patrykandpatrick.vico:compose-m3:1.15.0")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
