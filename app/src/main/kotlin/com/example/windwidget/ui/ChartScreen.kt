@@ -53,11 +53,6 @@ import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
 import com.patrykandpatrick.vico.compose.chart.Chart
 import com.patrykandpatrick.vico.compose.chart.line.lineChart
-import com.patrykandpatrick.vico.compose.chart.line.lineSpec
-import com.patrykandpatrick.vico.compose.component.shapeComponent
-import com.patrykandpatrick.vico.compose.component.textComponent
-import com.patrykandpatrick.vico.core.axis.AxisItemPlacer
-import com.patrykandpatrick.vico.core.component.shape.Shapes
 import com.patrykandpatrick.vico.core.entry.entryModelOf
 import com.patrykandpatrick.vico.core.entry.entryOf
 import kotlinx.coroutines.launch
@@ -267,38 +262,18 @@ fun ChartScreen(onOpenDrawer: () -> Unit) {
                                 modifier = Modifier.padding(bottom = 16.dp)
                             )
 
-                            val lineColor = MaterialTheme.colorScheme.primary
-
                             Chart(
-                                chart = lineChart(
-                                    lines = listOf(
-                                        lineSpec(
-                                            lineColor = lineColor,
-                                            lineThicknessDp = 2.5f
-                                        )
-                                    )
-                                ),
+                                chart = lineChart(),
                                 model = chartModel,
                                 startAxis = rememberStartAxis(
-                                    label = textComponent {
-                                        color = android.graphics.Color.GRAY
-                                        textSizeSp = 11f
-                                    },
                                     valueFormatter = { value, _ ->
                                         value.roundToInt().toString()
                                     }
                                 ),
                                 bottomAxis = rememberBottomAxis(
-                                    label = textComponent {
-                                        color = android.graphics.Color.GRAY
-                                        textSizeSp = 11f
-                                    },
                                     valueFormatter = { value, _ ->
                                         "${value.roundToInt()}h"
-                                    },
-                                    itemPlacer = AxisItemPlacer.Horizontal.default(
-                                        spacing = 3
-                                    )
+                                    }
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()

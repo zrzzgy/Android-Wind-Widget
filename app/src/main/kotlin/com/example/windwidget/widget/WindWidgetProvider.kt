@@ -55,13 +55,13 @@ class WindWidgetProvider : AppWidgetProvider() {
     ) {
         val views = RemoteViews(context.packageName, R.layout.widget_wind)
 
-        // Set up click on widget body to open app
+        // Set up click on whole widget to open app
         val openAppIntent = Intent(context, MainActivity::class.java)
         val openAppPending = PendingIntent.getActivity(
             context, 0, openAppIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        views.setOnClickPendingIntent(R.id.widget_content, openAppPending)
+        views.setOnClickPendingIntent(R.id.widget_root, openAppPending)
 
         // Set up refresh button click
         val refreshIntent = Intent(context, WindWidgetProvider::class.java).apply {
